@@ -21,30 +21,22 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'assets/media', // Use a clear folder in Cloudinary
+    folder: 'laundry-items',
     allowed_formats: ['jpg', 'jpeg', 'png'],
     resource_type: 'image',
   },
 });
 const upload = multer({ storage });
 
-// Cloud/local upload switch
-const USE_CLOUD_UPLOAD = process.env.USE_CLOUD_UPLOAD === 'true';
-
-// Example cloud upload function (to be implemented for your provider)
-async function uploadToCloud(file) {
-  // TODO: Replace with actual cloud upload logic (e.g., AWS S3, Cloudinary, etc.)
-  // Return the public URL of the uploaded image
-  return 'https://your-cloud-storage.com/' + file.filename;
-}
-
 // GET /api/laundry - Fetch all laundry items
 router.get('/', async (req, res) => {
   try {
+    console.log('Fetching laundry items...');
     const laundryItems = await Laundry.find();
+    console.log(`Found ${laundryItems.length} laundry items`);
     res.status(200).json(laundryItems);
   } catch (error) {
-    console.error('Error fetching laundry items:', error.message, error);
+    console.error('Error fetching laundry items:', error);
     res.status(500).json({ message: 'Failed to fetch laundry items', error: error.message });
   }
 });
@@ -53,48 +45,102 @@ router.get('/', async (req, res) => {
 router.post('/', upload.single('image'), async (req, res) => {
   try {
     console.log('--- Incoming POST /api/laundry ---');
-    console.log('Cloudinary config:', {
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET ? '***' : undefined
-    });
     console.log('req.body:', req.body);
     console.log('req.file:', req.file);
-    if (!req.file) {
-      return res.status(400).json({
-        message: 'No file received. Make sure you are sending a multipart/form-data request with the field name "image".',
-        tip: 'In Postman, set Body to form-data, add key "image" of type File, and select your image file.',
-        receivedBody: req.body
-      });
-    }
+
     const { name, category, price } = req.body;
+    
+    // Validate required fields
     if (!name || !category || !price) {
       return res.status(400).json({ message: 'Name, category, and price are required.' });
     }
-    const image = req.file.path; // Cloudinary URL is in file.path
-    if (!image || !image.startsWith('http')) {
-      return res.status(500).json({
-        message: 'Image was not uploaded to Cloudinary. Check Cloudinary credentials and configuration.',
-        file: req.file
+
+    // Validate image upload
+    if (!req.file) {
+      return res.status(400).json({
+        message: 'Image is required for laundry items.',
       });
     }
-    const newItem = new Laundry({ name, category, price, image });
+
+    const image = req.file.path; // Cloudinary URL
+    
+    const newItem = new Laundry({ 
+      name, 
+      category, 
+      price: parseFloat(price), 
+      image 
+    });
+    
     await newItem.save();
+    console.log('New laundry item created:', newItem);
     res.status(201).json(newItem);
   } catch (error) {
     console.error('Error adding laundry item:', error);
     res.status(500).json({
       message: 'Error adding laundry item',
-      error: error && error.message ? error.message : error,
-      fullError: error
+      error: error.message
     });
   }
 });
 
-// Catch-all route to log all requests to this router
-router.use((req, res, next) => {
-  console.log('Request received at laundryRoutes:', req.method, req.originalUrl);
-  next();
+// PUT /api/laundry/:id - Update laundry item
+router.put('/:id', upload.single('image'), async (req, res) => {
+  try {
+    console.log('--- Incoming PUT /api/laundry/:id ---');
+    console.log('req.params.id:', req.params.id);
+    console.log('req.body:', req.body);
+    console.log('req.file:', req.file);
+
+    const { name, category, price } = req.body;
+    const updateData = { name, category, price: parseFloat(price) };
+
+    // If new image is uploaded, update the image URL
+    if (req.file) {
+      updateData.image = req.file.path;
+    }
+
+    const updatedItem = await Laundry.findByIdAndUpdate(
+      req.params.id, 
+      updateData, 
+      { new: true }
+    );
+
+    if (!updatedItem) {
+      return res.status(404).json({ message: 'Laundry item not found' });
+    }
+
+    console.log('Laundry item updated:', updatedItem);
+    res.status(200).json(updatedItem);
+  } catch (error) {
+    console.error('Error updating laundry item:', error);
+    res.status(500).json({
+      message: 'Error updating laundry item',
+      error: error.message
+    });
+  }
+});
+
+// DELETE /api/laundry/:id - Delete laundry item
+router.delete('/:id', async (req, res) => {
+  try {
+    console.log('--- Incoming DELETE /api/laundry/:id ---');
+    console.log('req.params.id:', req.params.id);
+
+    const deletedItem = await Laundry.findByIdAndDelete(req.params.id);
+
+    if (!deletedItem) {
+      return res.status(404).json({ message: 'Laundry item not found' });
+    }
+
+    console.log('Laundry item deleted:', deletedItem);
+    res.status(200).json({ message: 'Laundry item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting laundry item:', error);
+    res.status(500).json({
+      message: 'Error deleting laundry item',
+      error: error.message
+    });
+  }
 });
 
 module.exports = router;
