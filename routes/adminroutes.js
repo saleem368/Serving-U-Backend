@@ -4,49 +4,122 @@ const Laundry = require('../models/laundryModel');
 const Unstitched = require('../models/unstitchedModel');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const dotenv = require('dotenv');
+dotenv.config();
+
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// Cloudinary config
+// Cloudinary config - Use environment variables instead of hardcoded values
 cloudinary.config({
-  cloud_name: '641568516994196',
-  api_key: '641568516994196',
-  api_secret: '3Cy_m8Xdc2uWIwyg6qSiGBsoyaQ',
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'your_cloud_name',
+  api_key: process.env.CLOUDINARY_API_KEY || 'your_api_key',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'your_api_secret',
 });
 
+// Cloudinary storage configuration
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'uploads',
+    folder: 'admin-uploads',
     allowed_formats: ['jpg', 'jpeg', 'png'],
+    resource_type: 'image',
   },
 });
+
 const upload = multer({ storage });
 
-// POST Laundry
-router.post('/laundry', upload.single('image'), async (req, res) => {
+// Helper function to ensure uploads directory exists
+const ensureUploadsDir = () => {
+  const uploadDir = path.join(__dirname, '../uploads');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  return uploadDir;
+};
+
+// GET all laundry items
+router.get('/laundry', async (req, res) => {
   try {
-    const newItem = new Laundry(req.body);
-    if (req.file) {
-      newItem.image = req.file.path; // Cloudinary URL is in file.path
-    }
-    const savedItem = await newItem.save();
-    res.status(201).json(savedItem);
+    console.log('Admin: Fetching all laundry items...');
+    const items = await Laundry.find();
+    console.log(`Admin: Found ${items.length} laundry items`);
+    res.status(200).json(items);
   } catch (error) {
-    console.error('Error adding laundry item:', error);
-    res.status(500).json({ message: 'Failed to add laundry item' });
+    console.error('Admin: Error fetching laundry items:', error);
+    res.status(500).json({ message: 'Failed to fetch laundry items', error: error.message });
   }
 });
 
-// POST Unstitched
+// GET all unstitched items
+router.get('/unstitched', async (req, res) => {
+  try {
+    console.log('Admin: Fetching all unstitched items...');
+    const items = await Unstitched.find();
+    console.log(`Admin: Found ${items.length} unstitched items`);
+    res.status(200).json(items);
+  } catch (error) {
+    console.error('Admin: Error fetching unstitched items:', error);
+    res.status(500).json({ message: 'Failed to fetch unstitched items', error: error.message });
+  }
+});
+
+// POST Laundry - Add new laundry item
+router.post('/laundry', upload.single('image'), async (req, res) => {
+  try {
+    console.log('--- Admin POST /laundry ---');
+    console.log('req.body:', req.body);
+    console.log('req.file:', req.file);
+
+    const { name, category, price } = req.body;
+
+    // Validate required fields
+    if (!name || !category || !price) {
+      return res.status(400).json({ message: 'Name, category, and price are required' });
+    }
+
+    const newItem = new Laundry({
+      name,
+      category,
+      price: parseFloat(price)
+    });
+
+    // Add image if uploaded
+    if (req.file) {
+      newItem.image = req.file.path; // Cloudinary URL
+    }
+
+    const savedItem = await newItem.save();
+    console.log('Admin: New laundry item created:', savedItem);
+    res.status(201).json(savedItem);
+  } catch (error) {
+    console.error('Admin: Error adding laundry item:', error);
+    res.status(500).json({ message: 'Failed to add laundry item', error: error.message });
+  }
+});
+
+// POST Unstitched - Add new unstitched item
 router.post('/unstitched', upload.array('images', 5), async (req, res) => {
   try {
-    // Accept sizes as array or comma-separated string
+    console.log('--- Admin POST /unstitched ---');
+    console.log('req.body:', req.body);
+    console.log('req.files:', req.files);
+
     let { sizes, name, price, description } = req.body;
+
+    // Validate required fields
+    if (!name || !price) {
+      return res.status(400).json({ message: 'Name and price are required' });
+    }
+
+    // Handle images
     let images = [];
     if (req.files && req.files.length > 0) {
-      images = req.files.map(file => file.path); // Cloudinary URL is in file.path
+      images = req.files.map(file => file.path); // Cloudinary URLs
     }
+
+    // Handle sizes parsing
     if (typeof sizes === 'string') {
       try {
         if (sizes.trim().startsWith('[')) {
@@ -59,37 +132,88 @@ router.post('/unstitched', upload.array('images', 5), async (req, res) => {
       }
     }
     if (!Array.isArray(sizes)) sizes = [];
-    const newItem = new Unstitched({ name, price, description, images, sizes });
+
+    const newItem = new Unstitched({ 
+      name, 
+      price: parseFloat(price), 
+      description: description || '', 
+      images, 
+      sizes 
+    });
+
     const savedItem = await newItem.save();
+    console.log('Admin: New unstitched item created:', savedItem);
     res.status(201).json(savedItem);
   } catch (error) {
-    console.error('Error adding unstitched item:', error);
-    res.status(500).json({ message: 'Failed to add unstitched item' });
+    console.error('Admin: Error adding unstitched item:', error);
+    res.status(500).json({ message: 'Failed to add unstitched item', error: error.message });
   }
 });
 
-// PUT Laundry (with image update support)
+// PUT Laundry - Update laundry item
 router.put('/laundry/:id', upload.single('image'), async (req, res) => {
   try {
+    console.log('--- Admin PUT /laundry/:id ---');
+    console.log('req.params.id:', req.params.id);
+    console.log('req.body:', req.body);
+    console.log('req.file:', req.file);
+
     const { name, category, price } = req.body;
-    let update = { name, category, price };
-    if (req.file) {
-      update.image = req.file.path; // Cloudinary URL is in file.path
+
+    if (!name || !category || !price) {
+      return res.status(400).json({ message: 'Name, category, and price are required' });
     }
-    const updatedItem = await Laundry.findByIdAndUpdate(req.params.id, update, { new: true });
+
+    let update = { 
+      name, 
+      category, 
+      price: parseFloat(price) 
+    };
+
+    // Update image if new one is uploaded
+    if (req.file) {
+      update.image = req.file.path; // Cloudinary URL
+    }
+
+    const updatedItem = await Laundry.findByIdAndUpdate(
+      req.params.id, 
+      update, 
+      { new: true }
+    );
+
+    if (!updatedItem) {
+      return res.status(404).json({ message: 'Laundry item not found' });
+    }
+
+    console.log('Admin: Laundry item updated:', updatedItem);
     res.status(200).json(updatedItem);
   } catch (error) {
-    console.error('Error updating laundry item:', error);
-    res.status(500).json({ message: 'Failed to update laundry item' });
+    console.error('Admin: Error updating laundry item:', error);
+    res.status(500).json({ message: 'Failed to update laundry item', error: error.message });
   }
 });
 
-// PUT Unstitched (with per-image replacement and append support)
-router.put('/unstitched/:id', upload.array('replaceImages'), async (req, res) => {
+// PUT Unstitched - Update unstitched item
+router.put('/unstitched/:id', upload.array('replaceImages', 5), async (req, res) => {
   try {
-    let { name, price, description, sizes } = req.body;
-    let update = { name, price, description };
-    // Accept sizes as array or comma-separated string
+    console.log('--- Admin PUT /unstitched/:id ---');
+    console.log('req.params.id:', req.params.id);
+    console.log('req.body:', req.body);
+    console.log('req.files:', req.files);
+
+    let { name, price, description, sizes, images } = req.body;
+
+    if (!name || !price) {
+      return res.status(400).json({ message: 'Name and price are required' });
+    }
+
+    let update = { 
+      name, 
+      price: parseFloat(price), 
+      description: description || '' 
+    };
+
+    // Handle sizes parsing
     if (typeof sizes === 'string') {
       try {
         if (sizes.trim().startsWith('[')) {
@@ -102,82 +226,141 @@ router.put('/unstitched/:id', upload.array('replaceImages'), async (req, res) =>
       }
     }
     if (Array.isArray(sizes)) update.sizes = sizes;
+
+    // Find existing item
     const item = await Unstitched.findById(req.params.id);
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-    let images = item.images || [];
+    if (!item) {
+      return res.status(404).json({ message: 'Unstitched item not found' });
+    }
+
+    let updatedImages = item.images || [];
+
+    // Handle new image uploads
     if (req.files && req.files.length > 0) {
-      let indexes = req.body.replaceIndexes;
-      const files = Array.isArray(req.files) ? req.files : [req.files];
-      if (indexes) {
-        if (!Array.isArray(indexes)) indexes = [indexes];
-        indexes.forEach((idx, i) => {
+      const newImages = req.files.map(file => file.path); // Cloudinary URLs
+      
+      // If replaceIndexes are provided, replace specific images
+      let replaceIndexes = req.body.replaceIndexes;
+      if (replaceIndexes) {
+        if (!Array.isArray(replaceIndexes)) replaceIndexes = [replaceIndexes];
+        
+        replaceIndexes.forEach((idx, i) => {
           const nIdx = parseInt(idx);
-          if (!isNaN(nIdx) && nIdx < 5) {
-            if (nIdx < images.length) {
-              images[nIdx] = `/uploads/${files[i].filename}`;
+          if (!isNaN(nIdx) && i < newImages.length) {
+            if (nIdx < updatedImages.length) {
+              updatedImages[nIdx] = newImages[i];
             } else {
-              // Always push if index is >= images.length
-              images.push(`/uploads/${files[i].filename}`);
+              updatedImages.push(newImages[i]);
             }
           }
         });
       } else {
-        // No replaceIndexes: treat all files as new images to append
-        files.forEach(file => {
-          if (images.length < 5) images.push(`/uploads/${file.filename}`);
+        // No specific indexes, append new images
+        newImages.forEach(img => {
+          if (updatedImages.length < 5) {
+            updatedImages.push(img);
+          }
         });
       }
-      images = images.slice(0, 5);
-      update.images = images;
     }
-    // Always update images if present, even if no new files are uploaded
-    if (images.length > 0 && !update.images) {
-      update.images = images;
+
+    // Handle image deletions from frontend
+    if (images && Array.isArray(images)) {
+      updatedImages = images;
     }
-    // Handle image deletions: if req.body.images is present, use it as the new images array
-    if (req.body.images && Array.isArray(req.body.images)) {
-      // Optionally, delete removed files from server
-      const newImages = req.body.images;
-      // Find removed images
-      const removedImages = images.filter(img => !newImages.includes(img));
-      // Remove files from server (optional, only for local uploads)
-      const fs = require('fs');
-      const uploadDir = path.join(__dirname, '../uploads');
-      removedImages.forEach(imgPath => {
-        if (imgPath.startsWith('/uploads/')) {
-          const filePath = path.join(uploadDir, path.basename(imgPath));
-          fs.unlink(filePath, err => { /* ignore errors */ });
-        }
-      });
-      update.images = newImages;
-    }
-    const updatedItem = await Unstitched.findByIdAndUpdate(req.params.id, update, { new: true });
+
+    // Limit to 5 images max
+    updatedImages = updatedImages.slice(0, 5);
+    update.images = updatedImages;
+
+    const updatedItem = await Unstitched.findByIdAndUpdate(
+      req.params.id, 
+      update, 
+      { new: true }
+    );
+
+    console.log('Admin: Unstitched item updated:', updatedItem);
     res.status(200).json(updatedItem);
   } catch (error) {
-    console.error('Error updating unstitched item:', error);
-    res.status(500).json({ message: 'Failed to update unstitched item' });
+    console.error('Admin: Error updating unstitched item:', error);
+    res.status(500).json({ message: 'Failed to update unstitched item', error: error.message });
   }
 });
 
-// DELETE Laundry
+// DELETE Laundry - Delete laundry item
 router.delete('/laundry/:id', async (req, res) => {
   try {
-    await Laundry.findByIdAndDelete(req.params.id);
+    console.log('--- Admin DELETE /laundry/:id ---');
+    console.log('req.params.id:', req.params.id);
+
+    const deletedItem = await Laundry.findByIdAndDelete(req.params.id);
+
+    if (!deletedItem) {
+      return res.status(404).json({ message: 'Laundry item not found' });
+    }
+
+    console.log('Admin: Laundry item deleted:', deletedItem);
     res.status(200).json({ message: 'Laundry item deleted successfully' });
   } catch (error) {
-    console.error('Error deleting laundry item:', error);
-    res.status(500).json({ message: 'Failed to delete laundry item' });
+    console.error('Admin: Error deleting laundry item:', error);
+    res.status(500).json({ message: 'Failed to delete laundry item', error: error.message });
   }
 });
 
-// DELETE Unstitched
+// DELETE Unstitched - Delete unstitched item
 router.delete('/unstitched/:id', async (req, res) => {
   try {
-    await Unstitched.findByIdAndDelete(req.params.id);
+    console.log('--- Admin DELETE /unstitched/:id ---');
+    console.log('req.params.id:', req.params.id);
+
+    const deletedItem = await Unstitched.findByIdAndDelete(req.params.id);
+
+    if (!deletedItem) {
+      return res.status(404).json({ message: 'Unstitched item not found' });
+    }
+
+    console.log('Admin: Unstitched item deleted:', deletedItem);
     res.status(200).json({ message: 'Unstitched item deleted successfully' });
   } catch (error) {
-    console.error('Error deleting unstitched item:', error);
-    res.status(500).json({ message: 'Failed to delete unstitched item' });
+    console.error('Admin: Error deleting unstitched item:', error);
+    res.status(500).json({ message: 'Failed to delete unstitched item', error: error.message });
+  }
+});
+
+// Bulk operations
+router.post('/laundry/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'IDs array is required' });
+    }
+
+    const result = await Laundry.deleteMany({ _id: { $in: ids } });
+    res.status(200).json({ 
+      message: `${result.deletedCount} laundry items deleted successfully`,
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    console.error('Admin: Error bulk deleting laundry items:', error);
+    res.status(500).json({ message: 'Failed to bulk delete laundry items', error: error.message });
+  }
+});
+
+router.post('/unstitched/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'IDs array is required' });
+    }
+
+    const result = await Unstitched.deleteMany({ _id: { $in: ids } });
+    res.status(200).json({ 
+      message: `${result.deletedCount} unstitched items deleted successfully`,
+      deletedCount: result.deletedCount 
+    });
+  } catch (error) {
+    console.error('Admin: Error bulk deleting unstitched items:', error);
+    res.status(500).json({ message: 'Failed to bulk delete unstitched items', error: error.message });
   }
 });
 
