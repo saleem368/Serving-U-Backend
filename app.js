@@ -8,7 +8,7 @@ const googleAuthRoutes = require('./routes/googleAuthRoutes'); // Import Google 
 const app = express();
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(express.json()); // Parse incoming JSON requests
 
 // Routes
