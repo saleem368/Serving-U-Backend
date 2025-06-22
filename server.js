@@ -1,29 +1,86 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const authRoutes = require('./routes/authRoutes');
-const laundryRoutes = require('./routes/laundryRoutes'); // Import laundry routes
-const razorpayRoutes = require('./routes/razorpayRoutes'); // Import Razorpay routes
-const googleAuthRoutes = require('./routes/googleAuthRoutes'); // Import Google OAuth routes
-
-const app = express();
-
-// Middleware
-app.use(cors({ origin: process.env.CLIENT_URL }));
-app.use(express.json()); // Parse incoming JSON requests
-
-app.get('/test', (req, res) => {
-  res.json({ message: 'Test endpoint is working!' });
-})
+const multer = require('multer');
+const path = require('path');
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/laundry', laundryRoutes); // Add laundry routes
-app.use('/api/razorpay', razorpayRoutes); // Add Razorpay routes
-app.use('/api/google-auth', googleAuthRoutes); // Add Google OAuth routes
+const orderRoutes = require('./routes/orderRoutes');
+const laundryRoutes = require('./routes/laundryRoutes');
+const unstitchedRoutes = require('./routes/unstitchedRoutes');
+const adminRoutes = require('./routes/adminroutes');
+const authRoutes = require('./routes/authRoutes');
+const alterationRoutes = require('./routes/alterationRoutes');
+const razorpayRoutes = require('./routes/razorpayRoutes');
+const googleAuthRoutes = require('./routes/googleAuthRoutes');
 
-// Default route for root path
+const app = express();
+const PORT = 5000;
+const MONGO_URI = 'mongodb+srv://saleem152000:saleem%40123@cluster0.hhyzrqb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+
+// Middleware
+const allowedOrigins = [
+  process.env.CLIENT_URL
+];
+
+console.log('Allowed Origins:', allowedOrigins);
+console.log('Server is starting...', process.env.CLIENT_URL);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+app.use(express.json());
+
+// Multer setup for image uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, 'uploads'));
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  },
+});
+const upload = multer({ storage });
+
+// Serve uploaded images statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Route Middleware
+app.use('/api/orders', orderRoutes);
+app.use('/api/laundry', laundryRoutes);
+app.use('/api/unstitched', unstitchedRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/alterations', alterationRoutes);
+app.use('/api/razorpay', razorpayRoutes);
+app.use('/api/google-auth', googleAuthRoutes);
+
+// Default route
 app.get('/', (req, res) => {
-  res.send('Welcome to the Serving U API!');
+  res.json({ message: 'Serving U Backend API is running!' });
 });
 
-module.exports = app;
+// MongoDB Connection
+mongoose
+  .connect(MONGO_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Error connecting to MongoDB:', error);
+  });
+
+// Export upload for use in routes
+module.exports = { app, upload };
