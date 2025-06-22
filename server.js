@@ -16,7 +16,7 @@ const googleAuthRoutes = require('./routes/googleAuthRoutes');
 
 const app = express();
 const PORT = 5000;
-const MONGO_URI = 'mongodb+srv://saleem152000:saleem@123@cluster0.hhyzrqb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI = 'mongodb+srv://saleem152000:saleem%40123@cluster0.hhyzrqb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 // Middleware
 app.use(cors({
