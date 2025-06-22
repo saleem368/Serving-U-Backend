@@ -20,9 +20,12 @@ const MONGO_URI = 'mongodb+srv://saleem152000:saleem%40123@cluster0.hhyzrqb.mong
 
 // Middleware
 const allowedOrigins = [
-  process.env.CLIENT_URL,
-  'http://localhost:5173'
+  process.env.CLIENT_URL
 ];
+
+console.log('Allowed Origins:', allowedOrigins);
+console.log('Server is starting...', process.env.CLIENT_URL);
+
 app.use(cors({
   origin: function (origin, callback) {
     // allow requests with no origin (like mobile apps, curl, etc.)
