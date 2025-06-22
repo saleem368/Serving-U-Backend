@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -9,18 +8,21 @@ const path = require('path');
 const orderRoutes = require('./routes/orderRoutes');
 const laundryRoutes = require('./routes/laundryRoutes');
 const unstitchedRoutes = require('./routes/unstitchedRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const authRoutes = require('./routes/authRoutes'); // New auth route
-const alterationRoutes = require('./routes/alterationRoutes'); // New alteration route
-const razorpayRoutes = require('./routes/razorpayRoutes'); // New Razorpay route
-const googleAuthRoutes = require('./routes/googleAuthRoutes'); // Google OAuth route
+const adminRoutes = require('./routes/adminroutes');
+const authRoutes = require('./routes/authRoutes');
+const alterationRoutes = require('./routes/alterationRoutes');
+const razorpayRoutes = require('./routes/razorpayRoutes');
+const googleAuthRoutes = require('./routes/googleAuthRoutes');
 
 const app = express();
 const PORT = 5000;
 const MONGO_URI = 'mongodb://localhost:27017/serving-u';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
 
 // Multer setup for image uploads
@@ -42,14 +44,19 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/laundry', laundryRoutes);
 app.use('/api/unstitched', unstitchedRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/auth', authRoutes); // Register auth route
-app.use('/api/alterations', alterationRoutes); // Register alteration route
-app.use('/api/razorpay', razorpayRoutes); // Register Razorpay route
-app.use('/api/google-auth', googleAuthRoutes); // Register Google OAuth route
+app.use('/api/auth', authRoutes);
+app.use('/api/alterations', alterationRoutes);
+app.use('/api/razorpay', razorpayRoutes);
+app.use('/api/google-auth', googleAuthRoutes);
+
+// Default route
+app.get('/', (req, res) => {
+  res.json({ message: 'Serving U Backend API is running!' });
+});
 
 // MongoDB Connection
 mongoose
-  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
     app.listen(PORT, '0.0.0.0', () => {
