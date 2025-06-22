@@ -3,8 +3,8 @@ const Razorpay = require('razorpay');
 const router = express.Router();
 
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_3FeMCBWy1YEsRn',
-  key_secret: 'ULR7l3pS2JrmUZ50fD5ZmsVn',
+  key_id: 'rzp_test_YRaq0OHA71CDyb',
+  key_secret: '5rRNo1utT9l6BZiCs2Z8d8iQ',
 });
 
 router.post('/order', async (req, res) => {
