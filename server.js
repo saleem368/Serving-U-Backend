@@ -21,7 +21,8 @@ const MONGO_URI = 'mongodb+srv://saleem152000:saleem%40123@cluster0.hhyzrqb.mong
 // Middleware
 const allowedOrigins = [
   process.env.CLIENT_URL,
-  'https://serving-u-frontend.vercel.app'
+  'https://serving-u-frontend.vercel.app',
+  'https://www.servingu.in/',
 ];
 
 console.log('Allowed Origins:', allowedOrigins);
