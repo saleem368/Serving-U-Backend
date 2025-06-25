@@ -2,13 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Laundry = require('../models/laundryModel');
 const multer = require('multer');
-const path = require('path');
-const dotenv = require('dotenv');
-dotenv.config();
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-
-console.log('laundryRoutes.js loaded and running!');
 
 // Cloudinary config
 cloudinary.config({
@@ -17,7 +12,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer setup for image uploads
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -28,75 +22,71 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage });
 
-// GET /api/laundry - Fetch all laundry items
+// GET all laundry items
 router.get('/', async (req, res) => {
   try {
-    console.log('Fetching laundry items...');
     const laundryItems = await Laundry.find();
-    console.log(`Found ${laundryItems.length} laundry items`);
     res.status(200).json(laundryItems);
   } catch (error) {
-    console.error('Error fetching laundry items:', error);
     res.status(500).json({ message: 'Failed to fetch laundry items', error: error.message });
   }
 });
 
-// POST /api/laundry - Add new laundry item with image
-router.post('/', upload.single('image'), async (req, res) => {
+// POST new laundry item
+router.post('/', upload.fields([{ name: 'image', maxCount: 1 }]), async (req, res) => {
   try {
-    console.log('--- Incoming POST /api/laundry ---');
-    console.log('req.body:', req.body);
-    console.log('req.file:', req.file);
-
-    const { name, category, price } = req.body;
+    const { name, category, price, unit } = req.body;
     
-    // Validate required fields
-    if (!name || !category || !price) {
-      return res.status(400).json({ message: 'Name, category, and price are required.' });
-    }
-
-    // Validate image upload
-    if (!req.file) {
-      return res.status(400).json({
-        message: 'Image is required for laundry items.',
+    // Validate all required fields including unit
+    if (!name || !category || !price || !unit) {
+      return res.status(400).json({ 
+        message: 'Name, category, price, and unit are required.' 
       });
     }
 
-    const image = req.file.path; // Cloudinary URL
-    
+    if (!req.files || !req.files.image || req.files.image.length === 0) {
+      return res.status(400).json({ message: 'Image is required for laundry items.' });
+    }
+
     const newItem = new Laundry({ 
       name, 
       category, 
       price: parseFloat(price), 
-      image 
+      image: req.files.image[0].path,
+      unit  // Unit is now required
     });
     
     await newItem.save();
-    console.log('New laundry item created:', newItem);
     res.status(201).json(newItem);
   } catch (error) {
-    console.error('Error adding laundry item:', error);
-    res.status(500).json({
-      message: 'Error adding laundry item',
-      error: error.message
+    res.status(500).json({ 
+      message: 'Error adding laundry item', 
+      error: error.message 
     });
   }
 });
 
-// PUT /api/laundry/:id - Update laundry item
-router.put('/:id', upload.single('image'), async (req, res) => {
+// PUT update laundry item
+router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }]), async (req, res) => {
   try {
-    console.log('--- Incoming PUT /api/laundry/:id ---');
-    console.log('req.params.id:', req.params.id);
-    console.log('req.body:', req.body);
-    console.log('req.file:', req.file);
+    const { name, category, price, unit } = req.body;
+    
+    // Validate all fields including unit
+    if (!name || !category || !price || !unit) {
+      return res.status(400).json({ 
+        message: 'Name, category, price, and unit are required.' 
+      });
+    }
 
-    const { name, category, price } = req.body;
-    const updateData = { name, category, price: parseFloat(price) };
+    const updateData = { 
+      name, 
+      category, 
+      price: parseFloat(price), 
+      unit  // Unit is required
+    };
 
-    // If new image is uploaded, update the image URL
-    if (req.file) {
-      updateData.image = req.file.path;
+    if (req.files && req.files.image && req.files.image.length > 0) {
+      updateData.image = req.files.image[0].path;
     }
 
     const updatedItem = await Laundry.findByIdAndUpdate(
@@ -109,36 +99,27 @@ router.put('/:id', upload.single('image'), async (req, res) => {
       return res.status(404).json({ message: 'Laundry item not found' });
     }
 
-    console.log('Laundry item updated:', updatedItem);
     res.status(200).json(updatedItem);
   } catch (error) {
-    console.error('Error updating laundry item:', error);
-    res.status(500).json({
-      message: 'Error updating laundry item',
-      error: error.message
+    res.status(500).json({ 
+      message: 'Error updating laundry item', 
+      error: error.message 
     });
   }
 });
 
-// DELETE /api/laundry/:id - Delete laundry item
+// DELETE laundry item
 router.delete('/:id', async (req, res) => {
   try {
-    console.log('--- Incoming DELETE /api/laundry/:id ---');
-    console.log('req.params.id:', req.params.id);
-
     const deletedItem = await Laundry.findByIdAndDelete(req.params.id);
-
     if (!deletedItem) {
       return res.status(404).json({ message: 'Laundry item not found' });
     }
-
-    console.log('Laundry item deleted:', deletedItem);
     res.status(200).json({ message: 'Laundry item deleted successfully' });
   } catch (error) {
-    console.error('Error deleting laundry item:', error);
-    res.status(500).json({
-      message: 'Error deleting laundry item',
-      error: error.message
+    res.status(500).json({ 
+      message: 'Error deleting laundry item', 
+      error: error.message 
     });
   }
 });
