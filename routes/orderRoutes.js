@@ -61,4 +61,41 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+// PATCH /api/orders/:id/total - Update order admin total
+router.patch('/:id/total', async (req, res) => {
+  try {
+    console.log('PATCH /api/orders/:id/total called');
+    console.log('Order ID:', req.params.id);
+    console.log('Request body:', req.body);
+    
+    const { adminTotal } = req.body;
+    if (adminTotal !== undefined && adminTotal < 0) {
+      return res.status(400).json({ message: 'Admin total must be non-negative' });
+    }
+    
+    console.log('Updating order with adminTotal:', adminTotal);
+    const updatedOrder = await Order.findByIdAndUpdate(
+      req.params.id,
+      { adminTotal: adminTotal || null },
+      { new: true }
+    );
+    
+    if (!updatedOrder) {
+      console.log('Order not found:', req.params.id);
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    console.log('Order updated successfully:', {
+      id: updatedOrder._id,
+      total: updatedOrder.total,
+      adminTotal: updatedOrder.adminTotal
+    });
+    
+    res.status(200).json(updatedOrder);
+  } catch (error) {
+    console.error('Error updating order admin total:', error);
+    res.status(500).json({ message: 'Failed to update order admin total' });
+  }
+});
+
 module.exports = router;
