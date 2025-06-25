@@ -66,28 +66,31 @@ router.get('/unstitched', async (req, res) => {
 });
 
 // POST Laundry - Add new laundry item
-router.post('/laundry', upload.single('image'), async (req, res) => {
+router.post('/laundry', upload.fields([{ name: 'image', maxCount: 1 }]), async (req, res) => {
   try {
     console.log('--- Admin POST /laundry ---');
     console.log('req.body:', req.body);
-    console.log('req.file:', req.file);
-
-    const { name, category, price } = req.body;
+    console.log('req.files:', req.files);
+    if (!req.body.unit) {
+      console.warn('WARNING: unit field missing in req.body:', req.body);
+    }
+    const { name, category, price, unit } = req.body; // Extract unit
 
     // Validate required fields
-    if (!name || !category || !price) {
-      return res.status(400).json({ message: 'Name, category, and price are required' });
+    if (!name || !category || !price || !unit) {
+      return res.status(400).json({ message: 'Name, category, price, and unit are required' });
     }
 
     const newItem = new Laundry({
       name,
       category,
-      price: parseFloat(price)
+      price: parseFloat(price),
+      unit, // Add unit
     });
 
-    // Add image if uploaded
-    if (req.file) {
-      newItem.image = req.file.path; // Cloudinary URL
+    // Save image if present
+    if (req.files && req.files.image && req.files.image[0]) {
+      newItem.image = req.files.image[0].path; // Cloudinary URL
     }
 
     const savedItem = await newItem.save();
@@ -151,33 +154,34 @@ router.post('/unstitched', upload.array('images', 5), async (req, res) => {
 });
 
 // PUT Laundry - Update laundry item
-router.put('/laundry/:id', upload.single('image'), async (req, res) => {
+router.put('/laundry/:id', upload.fields([{ name: 'image', maxCount: 1 }]), async (req, res) => {
   try {
     console.log('--- Admin PUT /laundry/:id ---');
     console.log('req.params.id:', req.params.id);
     console.log('req.body:', req.body);
-    console.log('req.file:', req.file);
+    console.log('req.files:', req.files);
 
-    const { name, category, price } = req.body;
+    const { name, category, price, unit } = req.body; // Extract unit
 
-    if (!name || !category || !price) {
-      return res.status(400).json({ message: 'Name, category, and price are required' });
+    if (!name || !category || !price || !unit) {
+      return res.status(400).json({ message: 'Name, category, price, and unit are required' });
     }
 
-    let update = { 
-      name, 
-      category, 
-      price: parseFloat(price) 
+    let update = {
+      name,
+      category,
+      price: parseFloat(price),
+      unit, // Add unit
     };
 
     // Update image if new one is uploaded
-    if (req.file) {
-      update.image = req.file.path; // Cloudinary URL
+    if (req.files && req.files.image && req.files.image[0]) {
+      update.image = req.files.image[0].path; // Cloudinary URL
     }
 
     const updatedItem = await Laundry.findByIdAndUpdate(
-      req.params.id, 
-      update, 
+      req.params.id,
+      update,
       { new: true }
     );
 
