@@ -18,6 +18,7 @@ const orderSchema = new mongoose.Schema({
     },
   ],
   total: { type: Number, required: true },
+  adminTotal: { type: Number }, // Admin-set total price
   timestamp: { type: Date, default: Date.now },
   status: {
     type: String,
