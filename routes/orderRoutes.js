@@ -1,6 +1,8 @@
+
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/orderModel');
+const { sendOrderEmail } = require('../utils/email');
 
 // POST /api/orders - Place a new order
 router.post('/', async (req, res) => {
@@ -21,6 +23,8 @@ router.post('/', async (req, res) => {
     });
 
     const savedOrder = await newOrder.save();
+    // Send email notification to admin
+    sendOrderEmail(savedOrder);
     res.status(201).json(savedOrder);
   } catch (error) {
     console.error('Error placing order:', error);
