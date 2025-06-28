@@ -21,7 +21,7 @@ const MONGO_URI = process.env.MONGO_URI;
 // Middleware
 const allowedOrigins = [
   process.env.CLIENT_URL
-];
+].filter(Boolean); // Remove undefined values
 
 console.log('Allowed Origins:', allowedOrigins);
 console.log('Server is starting...', process.env.CLIENT_URL);
@@ -30,11 +30,21 @@ console.log('MongoDB URI exists:', !!MONGO_URI);
 
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps, curl, etc.)
+    // Allow requests with no origin (like mobile apps, Postman, curl, etc.)
     if (!origin) return callback(null, true);
+    
+    // If CLIENT_URL is not set, allow all origins (for development)
+    if (!process.env.CLIENT_URL) {
+      console.log('CLIENT_URL not set, allowing all origins');
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
+      console.log('Origin not allowed:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       return callback(new Error('Not allowed by CORS'));
     }
   },
@@ -71,7 +81,22 @@ app.get('/', (req, res) => {
   res.json({ message: 'Serving U Backend API is running!' });
 });
 
-// MongoDB Connection - FIXED: Use environment variable
+// Health check route
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    mongoConnected: mongoose.connection.readyState === 1
+  });
+});
+
+// MongoDB Connection
+if (!MONGO_URI) {
+  console.error('MONGO_URI environment variable is not set');
+  process.exit(1);
+}
+
 mongoose
   .connect(MONGO_URI)
   .then(() => {
@@ -82,6 +107,7 @@ mongoose
   })
   .catch((error) => {
     console.error('Error connecting to MongoDB:', error);
+    process.exit(1);
   });
 
 // Export upload for use in routes
