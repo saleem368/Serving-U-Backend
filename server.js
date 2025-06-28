@@ -18,10 +18,18 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGO_URI;
 
+// Function to normalize URL (remove trailing slash)
+function normalizeUrl(url) {
+  if (!url) return url;
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+}
+
 // Middleware
 const allowedOrigins = [
+  normalizeUrl(process.env.CLIENT_URL),
+  // Add both versions to be safe
   process.env.CLIENT_URL
-].filter(Boolean); // Remove undefined values
+].filter(Boolean).filter((url, index, arr) => arr.indexOf(url) === index); // Remove duplicates
 
 console.log('Allowed Origins:', allowedOrigins);
 console.log('Server is starting...', process.env.CLIENT_URL);
@@ -33,17 +41,21 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, Postman, curl, etc.)
     if (!origin) return callback(null, true);
     
-    // If CLIENT_URL is not set, allow all origins (for development)
+    // If CLIENT_URL is not set, block all browser requests for security
     if (!process.env.CLIENT_URL) {
-      console.log('CLIENT_URL not set, allowing all origins');
-      return callback(null, true);
+      console.log('CLIENT_URL not set, blocking browser request from:', origin);
+      return callback(new Error('CLIENT_URL environment variable must be set'));
     }
     
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
+    // Normalize the incoming origin
+    const normalizedOrigin = normalizeUrl(origin);
+    
+    // Check if normalized origin is in allowed list
+    if (allowedOrigins.includes(normalizedOrigin) || allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
       console.log('Origin not allowed:', origin);
+      console.log('Normalized origin:', normalizedOrigin);
       console.log('Allowed origins:', allowedOrigins);
       return callback(new Error('Not allowed by CORS'));
     }
