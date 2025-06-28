@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -16,14 +17,11 @@ const googleAuthRoutes = require('./routes/googleAuthRoutes');
 
 const app = express();
 const PORT = 5000;
-const MONGO_URI = 'mongodb+srv://saleem152000:saleem%40123@cluster0.hhyzrqb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI = process.env.MONGO_URI; // Use environment variable
 
 // Middleware
 const allowedOrigins = [
-  process.env.CLIENT_URL,
-  'https://serving-u-frontend.vercel.app/',
-  'https://www.servingu.in'
-
+  process.env.CLIENT_URL
 ];
 
 console.log('Allowed Origins:', allowedOrigins);
@@ -74,7 +72,7 @@ app.get('/', (req, res) => {
 
 // MongoDB Connection
 mongoose
-  .connect(MONGO_URI)
+  .connect('mongodb://localhost:27017/serving-u', { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
     console.log('Connected to MongoDB');
     app.listen(PORT, '0.0.0.0', () => {
