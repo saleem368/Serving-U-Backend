@@ -15,8 +15,8 @@ const razorpayRoutes = require('./routes/razorpayRoutes');
 const googleAuthRoutes = require('./routes/googleAuthRoutes');
 
 const app = express();
-const PORT = 5000;
-const MONGO_URI = process.env.MONGO_URI; // Use environment variable
+const PORT = process.env.PORT || 10000;
+const MONGO_URI = process.env.MONGO_URI;
 
 // Middleware
 const allowedOrigins = [
@@ -25,6 +25,8 @@ const allowedOrigins = [
 
 console.log('Allowed Origins:', allowedOrigins);
 console.log('Server is starting...', process.env.CLIENT_URL);
+console.log('Port:', PORT);
+console.log('MongoDB URI exists:', !!MONGO_URI);
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -69,13 +71,13 @@ app.get('/', (req, res) => {
   res.json({ message: 'Serving U Backend API is running!' });
 });
 
-// MongoDB Connection
+// MongoDB Connection - FIXED: Use environment variable
 mongoose
-  .connect('mongodb://localhost:27017/serving-u', { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(MONGO_URI)
   .then(() => {
     console.log('Connected to MongoDB');
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Server running on port ${PORT}`);
     });
   })
   .catch((error) => {
