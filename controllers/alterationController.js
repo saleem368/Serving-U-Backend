@@ -26,7 +26,7 @@ exports.getAlterations = async (req, res) => {
 exports.updateStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    if (!['pending', 'accepted', 'rejected', 'completed'].includes(status)) {
+    if (!['pending', 'accepted', 'rejected', 'completed', 'delivered'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status value' });
     }
     const updated = await Alteration.findByIdAndUpdate(
