@@ -10,7 +10,7 @@ const alterationSchema = new mongoose.Schema({
   note: { type: String, required: true },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected', 'completed'],
+    enum: ['pending', 'accepted', 'rejected', 'completed', 'delivered'],
     default: 'pending',
   },
   timestamp: { type: Date, default: Date.now },
