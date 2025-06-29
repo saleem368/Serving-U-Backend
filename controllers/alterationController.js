@@ -1,4 +1,5 @@
 const Alteration = require('../models/alterationModel');
+const { sendAlterationEmail } = require('../utils/email');
 
 exports.createAlteration = async (req, res) => {
   try {
@@ -8,6 +9,8 @@ exports.createAlteration = async (req, res) => {
     }
     const newAlteration = new Alteration({ customer, note });
     const saved = await newAlteration.save();
+    // Send email notification to admin
+    sendAlterationEmail(saved);
     res.status(201).json(saved);
   } catch (error) {
     res.status(500).json({ message: 'Failed to create alteration', error });
