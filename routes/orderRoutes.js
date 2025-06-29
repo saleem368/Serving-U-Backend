@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
 router.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
-    if (!['pending', 'accepted', 'rejected', 'completed'].includes(status)) {
+    if (!['Pending', 'Accepted', 'Rejected', 'Completed', 'Delivered'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status value' });
     }
     const updatedOrder = await Order.findByIdAndUpdate(
