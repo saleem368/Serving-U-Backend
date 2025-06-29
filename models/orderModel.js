@@ -22,8 +22,8 @@ const orderSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected', 'completed'],
-    default: 'pending',
+    enum: ['Pending', 'Accepted', 'Rejected', 'Completed', 'Delivered'],
+    default: 'Pending',
   },
   note: { type: String }, // Optional note from customer
   paymentStatus: {
