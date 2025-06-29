@@ -1,9 +1,11 @@
 const nodemailer = require('nodemailer');
 const Order = require('../models/orderModel');
+const Alteration = require('../models/alterationModel');
 
 const GMAIL_USER = process.env.GMAIL_USER;
 const GMAIL_PASS = process.env.GMAIL_PASS;
 const ORDER_NOTIFY_EMAIL = process.env.ORDER_NOTIFY_EMAIL || GMAIL_USER;
+const ALTERATION_NOTIFY_EMAIL = process.env.ALTERATION_NOTIFY_EMAIL || GMAIL_USER;
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -53,4 +55,44 @@ async function sendOrderEmail(order) {
   }
 }
 
-module.exports = { sendOrderEmail };
+// Helper to generate same alteration ID format as website (S0001, S0002, etc.)
+async function getWebsiteAlterationId(alteration) {
+  try {
+    // Get all alterations sorted by timestamp (oldest first) to match website logic
+    const allAlterations = await Alteration.find({}).sort({ timestamp: 1 });
+    const alterationIndex = allAlterations.findIndex(a => a._id.toString() === alteration._id.toString());
+    
+    if (alterationIndex === -1) return alteration._id; // Fallback to MongoDB ID
+    
+    return `S${(alterationIndex + 1).toString().padStart(4, '0')}`;
+  } catch (error) {
+    console.error('Error generating website alteration ID:', error);
+    return alteration._id; // Fallback to MongoDB ID
+  }
+}
+
+function formatAlterationEmail(alteration, websiteAlterationId) {
+  return {
+    subject: `New Alteration Appointment: ${websiteAlterationId}`,
+    text: `A new alteration appointment has been booked.\n\nAlteration ID: ${websiteAlterationId}\nCustomer: ${alteration.customer.name}\nAddress: ${alteration.customer.address}\nPhone: ${alteration.customer.phone}\nEmail: ${alteration.customer.email}\nStatus: ${alteration.status || 'pending'}\n\nNote: ${alteration.note}\n\nAppointment Date: ${new Date(alteration.timestamp).toLocaleString()}`
+  };
+}
+
+async function sendAlterationEmail(alteration) {
+  const websiteAlterationId = await getWebsiteAlterationId(alteration);
+  const { subject, text } = formatAlterationEmail(alteration, websiteAlterationId);
+  const mailOptions = {
+    from: GMAIL_USER,
+    to: ALTERATION_NOTIFY_EMAIL,
+    subject,
+    text,
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('[AlterationEmail] Email sent for alteration', websiteAlterationId);
+  } catch (err) {
+    console.error('[AlterationEmail] Failed to send email:', err);
+  }
+}
+
+module.exports = { sendOrderEmail, sendAlterationEmail };
