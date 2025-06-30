@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/orderModel');
@@ -99,6 +98,64 @@ router.patch('/:id/total', async (req, res) => {
   } catch (error) {
     console.error('Error updating order admin total:', error);
     res.status(500).json({ message: 'Failed to update order admin total' });
+  }
+});
+
+// PATCH /api/orders/:id/payment - Update order payment status
+router.patch('/:id/payment', async (req, res) => {
+  try {
+    console.log('PATCH /api/orders/:id/payment called');
+    console.log('Order ID:', req.params.id);
+    console.log('Request body:', req.body);
+    
+    const { paymentStatus, paymentId, razorpayOrderId, razorpaySignature } = req.body;
+    
+    if (!paymentStatus || !['Paid', 'Cash on Delivery'].includes(paymentStatus)) {
+      return res.status(400).json({ message: 'Invalid payment status' });
+    }
+    
+    const updateData = { 
+      paymentStatus,
+      paymentUpdatedAt: new Date()
+    };
+    
+    // For online payments, store transaction details
+    if (paymentStatus === 'Paid' && paymentId) {
+      updateData.paymentId = paymentId;
+      updateData.razorpayOrderId = razorpayOrderId;
+      updateData.razorpaySignature = razorpaySignature;
+      
+      console.log('Recording payment transaction:', {
+        paymentId,
+        razorpayOrderId,
+        orderId: req.params.id
+      });
+    }
+    
+    console.log('Updating order payment with:', updateData);
+    const updatedOrder = await Order.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+    
+    if (!updatedOrder) {
+      console.log('Order not found:', req.params.id);
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    console.log('Order payment updated successfully:', {
+      id: updatedOrder._id,
+      paymentStatus: updatedOrder.paymentStatus,
+      paymentId: updatedOrder.paymentId,
+      customer: updatedOrder.customer.name,
+      amount: updatedOrder.adminTotal || updatedOrder.total
+    });
+    
+    res.status(200).json(updatedOrder);
+  } catch (error) {
+    console.error('Error updating order payment status:', error);
+    res.status(500).json({ message: 'Failed to update order payment status' });
   }
 });
 
