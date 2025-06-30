@@ -31,6 +31,10 @@ const orderSchema = new mongoose.Schema({
     enum: ['Paid', 'Cash on Delivery'],
     default: 'Cash on Delivery',
   },
+  paymentId: { type: String }, // Razorpay payment ID for online payments
+  razorpayOrderId: { type: String }, // Razorpay order ID
+  razorpaySignature: { type: String }, // Razorpay signature for verification
+  paymentUpdatedAt: { type: Date }, // When payment status was last updated
 });
 
 // Helper static method to group items by laundry/unstiched
